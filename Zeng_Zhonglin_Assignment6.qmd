@@ -156,7 +156,7 @@ f2_clusters = f2_test.with_columns(
         ).cast(pl.Utf8).cast(pl.Categorical)  # Make cluster labels 1-indexed
 )
 
-f2_clusters.head()
+f2_clusters.head() 
 ```
 ## Description
 -Segment 1: Consistent Participants with Moderate Performance
