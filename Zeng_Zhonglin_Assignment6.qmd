@@ -1,0 +1,208 @@
+---
+title: "Sample Project"
+subtitle: "MKTG - LEE"
+execute: 
+  echo: true
+  eval: true
+format:
+  html:
+    code-fold: false
+    self-contained: true
+jupyter: python3
+---
+
+
+# Executive Summary
+
+# Introduction & Data Set Used
+
+- As a racing manager, determining which drivers to target for progression to Formula One (F1) is critical. This project focuses on identifying potential F1 drivers and assessing their value through a data-driven approach.
+
+- We get the datasets by manually scrape the Online data ..., and the files can be accessed through [Motorsports](https://motorsportstats.com/series/fia-formula-2-championship/summary/2024)
+
+
+
+
+# Data Preprocessing and Exploratory Data Analysis
+
+- We explore the data set by visualizing the main variables of interest...
+
+```{python}
+# load required packages
+import polars as pl
+import plotly.express as px
+from sklearn.pipeline import Pipeline
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+
+# Load data
+f2 = pl.read_csv(
+    './2024.csv', ignore_errors = True
+)
+
+# View the first few rows of the data
+f2.head()
+
+```
+
+
+- First, we examine the distribution of Points by plotting a histogram.
+
+```{python}
+
+px.histogram(f2, x = 'P(Points)')
+
+
+```
+
+
+From the histogram, it looks like the range of the avg_distance traveled is mostly between 200 and 800 mpg.
+
+- Second, we examine if any null value exist in these five columns.
+
+```{python}
+#| echo: false
+
+# This will only show the results but not the code, because 'echo' is set to false
+f2.select(
+    pl.col('RS(Starts)').is_null().sum(),
+    pl.col('PD(Podiums)').is_null().sum(),
+    pl.col('AF(AVG. Finish)').is_null().sum(),
+    pl.col('DNF(Retirements)').is_null().sum(),
+    pl.col('P(Points)').is_null().sum()
+)
+
+```
+# Model-Based Analysis
+
+We use XXX model to investigate the data set.
+
+
+## Customer Segmentation
+```{python}
+# Select relevant features for clustering
+f2_test = f2.select([
+    'RS(Starts)',
+    'PD(Podiums)',
+    'AF(AVG. Finish)',
+    'DNF(Retirements)',
+    'P(Points)'])
+
+```
+
+## K-means Piplines
+```{python}
+
+def create_pipeline(num_clusters, random_seed = 42):
+    """
+    Creates a machine learning pipeline with a scaler and KMeans.
+    """
+    pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('kmeans', KMeans(n_clusters=num_clusters, random_state=random_seed))
+    ])
+    return pipeline
+
+
+```
+
+## Elbow Method
+```{python}
+def calculate_totwithinss(data, k):
+    kmeans_pipeline = create_pipeline(k, random_seed=10)
+    kmeans_pipeline.fit(data)
+    return kmeans_pipeline['kmeans'].inertia_
+
+# Calculate tot.withinss for different values of k
+k_values = range(1, 10)
+totwithinss_values = [calculate_totwithinss(f2_test, k) for k in k_values]
+
+# Create a DataFrame for results
+kmeans_results = pl.DataFrame(
+    {'num_clusters': k_values,
+     'tot_withinss': totwithinss_values})
+
+# Plot the elbow method using Plotly Express
+elbow_plot = px.line(
+    data_frame = kmeans_results,
+    x = 'num_clusters',
+    y = 'tot_withinss', 
+    markers = True,
+    labels = {
+        'num_clusters': 'Number of Clusters', 'tot_withinss': 'Total Within SS'
+        },
+    title = 'Elbow Method for Optimal k')
+
+elbow_plot.show()
+```
+
+## Final K-means
+```{python}
+
+optimal_k = 3
+
+# Run K-means clustering
+
+f2_kmeans_pipeline = create_pipeline(optimal_k)
+f2_kmeans_pipeline.fit(f2_test)
+
+
+# Add cluster assignments to the original data
+f2_clusters = f2_test.with_columns(
+    pl.Series(
+        "segment_number",
+        f2_kmeans_pipeline['kmeans'].labels_ + 1
+        ).cast(pl.Utf8).cast(pl.Categorical)  # Make cluster labels 1-indexed
+)
+
+f2_clusters.head()
+```
+## Description
+-Segment 1: Consistent Participants with Moderate Performance
+Racing Starts (RS): Segment 1 drivers have a high number of starts, indicating consistent participation in races.
+Podiums (PD): These drivers have low podium appearances, suggesting they are regular but do not frequently reach top positions.
+Average Finish (AF): Their average finishing position is moderate, showing competitive but not leading performances.
+Retirements (DNF): They experience a moderate rate of retirements, which may slightly impact their overall performance.
+Points (P): Drivers in this segment accumulate a moderate amount of points, indicating consistent but not high-scoring results.
+
+-Segment 2: Newcomers or Sporadic Participants
+Racing Starts (RS): Segment 2 drivers have fewer starts, which may indicate either newcomers or drivers with less consistent participation.
+Podiums (PD): Podium appearances are very low or nonexistent, likely due to limited racing experience or opportunities.
+Average Finish (AF): Their average finish varies but does not indicate particularly competitive results.
+Retirements (DNF): Low retirement rates may indicate cautious driving or fewer total races.
+Points (P): Points are generally low, correlating with their limited involvement or newer status in racing.
+
+-Segment 3: High-Performers with Strong Track Record
+Racing Starts (RS): Drivers in Segment 3 also have high starts, showing consistency and experience.
+Podiums (PD): High podium frequency characterizes this segment, indicating that these drivers frequently finish in top positions.
+Average Finish (AF): They maintain a lower average finishing position, signifying competitive and leading performances.
+Retirements (DNF): Despite a slightly higher retirement rate, these drivers still perform well, suggesting aggressive or high-risk racing styles.
+Points (P): High point accumulation is a key characteristic, marking these drivers as top performers in the series.
+
+## Targeting
+
+## Binary Outcome Prediction
+
+## Continuous Outcome Prediction
+
+## RFM Analysis
+
+## ROMI Analysis
+
+# Results and Findings
+
+# Research Implications
+## Managerical Recommendations
+1.
+2.
+3.
+
+## Actionable Plans
+1.
+2.
+3.
+
+# Conclusion
+
+## Works Cited
